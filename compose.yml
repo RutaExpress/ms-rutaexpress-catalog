@@ -1,0 +1,21 @@
+services:
+  catalog:
+    build: .
+    image: ms-rutaexpress-catalog:latest
+    container_name: ms-rutaexpress-catalog
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:h2:mem:catalogdb
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.h2.Driver
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: ""
+      SERVER_PORT: 8081
+    networks:
+      - rutaexpress-network
+    restart: unless-stopped
+
+networks:
+  rutaexpress-network:
+    driver: bridge
