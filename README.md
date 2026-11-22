@@ -1,53 +1,37 @@
 # ms-rutaexpress-catalog
 
-Microservicio de gestión de servicios de envío y capacidad de flota para la plataforma RutaExpress.
+Microservicio de **catálogo** del caso RutaExpress: tipos de envío, tarifa y capacidad disponible. Guarda en **Oracle**.
+
+> Arquitectura en capas (refactor desde hexagonal, rama `refactor/ArquitecturaCapas`).
 
 ## Tecnologías
+Java 21 · Spring Boot 4.1.2 · Spring Data JPA (Oracle) · Bean Validation · Lombok · JUnit 5 y Mockito
 
-- Java 21
-- Spring Boot 4.1.1
-- Spring Data JPA
-- H2 (desarrollo local) / Oracle RDS (producción)
-- Maven
-- Docker / Docker Compose
+## Arquitectura en capas
+Una petición baja siempre en el mismo orden: **controller → service → repository → model**.
 
-## Arquitectura
-
-El proyecto sigue **arquitectura hexagonal** (Ports & Adapters) combinada con **DDD (Domain-Driven Design)**:
-
+```
 src/main/java/com/rutaexpress/catalog/
-├── domain/ ← Modelo de dominio puro (sin dependencias de framework)
-│ ├── model/ ← Entidades y Value Objects
-│ ├── port/in/ ← Puertos de entrada (casos de uso)
-│ ├── port/out/ ← Puertos de salida (persistencia, mensajería)
-│ └── exception/ ← Excepciones de dominio
-├── application/ ← Casos de uso y DTOs
-│ ├── dto/ ← Commands y Responses
-│ └── service/ ← Implementación de los casos de uso
-├── adapter/ ← Adaptadores (REST, JPA, mensajería)
-│ ├── in/web/ ← Controladores REST y DTOs de entrada
-│ └── out/persistence/ ← Entidades JPA, mappers y adaptadores de persistencia
-└── infrastructure/ ← Configuración de Spring
+├── controller/   Solo HTTP: recibe el DTO con @Valid, llama al service y responde
+├── service/      Reglas del catálogo
+├── repository/   Interfaces de Spring Data (JpaRepository): solo acceso a datos
+├── model/        Entidad ShippingService (@Entity) y Money (precio y moneda)
+├── dto/          Records de entrada y salida, con sus validaciones
+└── exception/    Excepciones de negocio y el manejador global (ProblemDetail)
+```
 
+## Endpoints (puerto 8083)
+| Método | Ruta | Qué hace |
+|---|---|---|
+| POST | `/api/v1/catalog/services` | Crear servicio (201; nombre repetido → 409) |
+| GET | `/api/v1/catalog/services` | Listar servicios |
+| GET | `/api/v1/catalog/services/active` | Listar solo los activos |
+| GET | `/api/v1/catalog/services/{id}` | Ver un servicio |
+| PUT | `/api/v1/catalog/services/{id}` | Cambiar tarifa y/o capacidad (`capacityDelta`; bajo 0 → 409) |
+| PATCH | `/api/v1/catalog/services/{id}/activate` · `/deactivate` | Activar o desactivar |
+| DELETE | `/api/v1/catalog/services/{id}` | Eliminar (204) |
 
-## Endpoints
-
-| Método | Ruta | Descripción |
-| :--- | :--- | :--- |
-| `POST` | `/api/catalog/services` | Crear un nuevo servicio |
-| `GET` | `/api/catalog/services` | Listar todos los servicios |
-| `GET` | `/api/catalog/services/active` | Listar solo los servicios activos |
-| `GET` | `/api/catalog/services/{id}` | Obtener un servicio por ID |
-| `PUT` | `/api/catalog/services/{id}` | Actualizar tarifa y/o capacidad |
-| `PATCH` | `/api/catalog/services/{id}/activate` | Activar un servicio |
-| `PATCH` | `/api/catalog/services/{id}/deactivate` | Desactivar un servicio |
-| `DELETE` | `/api/catalog/services/{id}` | Eliminar un servicio |
-
-## Ejemplo de uso
-
-### Crear un servicio
-
-```bash
-curl -X POST http://localhost:8081/api/catalog/services \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Envio Express","basePrice":4990,"currency":"CLP","initialCapacity":10}'
+## Tests
+```
+mvnw.cmd test
+```
